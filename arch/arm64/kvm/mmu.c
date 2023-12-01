@@ -1454,10 +1454,16 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu)
 		if (fault_ipa >= BIT_ULL(vcpu->arch.hw_mmu->pgt->ia_bits)) {
 			fault_ipa |= kvm_vcpu_get_hfar(vcpu) & GENMASK(11, 0);
 
-			if (is_iabt)
+			if (is_iabt) {
+
+				if (SHOULD_FORWARD_RAW(vcpu))
+					return forward_user_raw(vcpu);
+
 				kvm_inject_pabt(vcpu, fault_ipa);
+			}
 			else
 				kvm_inject_dabt(vcpu, fault_ipa);
+
 			return 1;
 		}
 	}
@@ -1502,6 +1508,11 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu)
 		 * re-inject the abort back into the guest.
 		 */
 		if (is_iabt) {
+			if (SHOULD_FORWARD_RAW(vcpu))
+			{
+				forward_user_raw(vcpu);
+				goto out;
+			}
 			ret = -ENOEXEC;
 			goto out;
 		}

@@ -213,6 +213,8 @@ struct kvm_arch {
 #define KVM_ARCH_FLAG_EL1_32BIT				4
 	/* PSCI SYSTEM_SUSPEND enabled for the guest */
 #define KVM_ARCH_FLAG_SYSTEM_SUSPEND_ENABLED		5
+	/* push most of the VMM funtionality to userland */
+#define KVM_ARCH_FLAG_RAW_MODE				6
 
 	unsigned long flags;
 
@@ -1003,6 +1005,10 @@ static inline bool kvm_vm_is_protected(struct kvm *kvm)
 {
 	return false;
 }
+
+int forward_user_raw(struct kvm_vcpu *vcpu);
+#define SHOULD_FORWARD_RAW(vcpu) \
+        (test_bit(KVM_ARCH_FLAG_RAW_MODE, &(vcpu)->kvm->arch.flags))
 
 void kvm_init_protected_traps(struct kvm_vcpu *vcpu);
 

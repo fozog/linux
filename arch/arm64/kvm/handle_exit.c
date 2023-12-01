@@ -27,6 +27,15 @@
 
 typedef int (*exit_handle_fn)(struct kvm_vcpu *);
 
+int forward_user_raw(struct kvm_vcpu *vcpu) 
+{
+	struct kvm_run *run = vcpu->run;
+	run->exit_reason = KVM_EXIT_ARM_RAW_MODE;
+	run->arm_raw.esr_el2 = kvm_vcpu_get_esr(vcpu);
+	run->arm_raw.fault_ipa = kvm_vcpu_get_fault_ipa(vcpu);
+	return 0;
+}
+
 static void kvm_handle_guest_serror(struct kvm_vcpu *vcpu, u64 esr)
 {
 	if (!arm64_is_ras_serror(esr) || arm64_is_fatal_ras_serror(NULL, esr))
@@ -39,6 +48,10 @@ static int handle_hvc(struct kvm_vcpu *vcpu)
 
 	trace_kvm_hvc_arm64(*vcpu_pc(vcpu), vcpu_get_reg(vcpu, 0),
 			    kvm_vcpu_hvc_get_imm(vcpu));
+
+	if (SHOULD_FORWARD_RAW(vcpu))
+		return forward_user_raw(vcpu);
+
 	vcpu->stat.hvc_exit_stat++;
 
 	ret = kvm_hvc_call_handler(vcpu);
@@ -60,6 +73,9 @@ static int handle_smc(struct kvm_vcpu *vcpu)
 	 * We need to advance the PC after the trap, as it would
 	 * otherwise return to the same address...
 	 */
+	if (SHOULD_FORWARD_RAW(vcpu))
+		return forward_user_raw(vcpu);
+
 	vcpu_set_reg(vcpu, 0, ~0UL);
 	kvm_incr_pc(vcpu);
 	return 1;
@@ -71,6 +87,9 @@ static int handle_smc(struct kvm_vcpu *vcpu)
  */
 static int handle_no_fpsimd(struct kvm_vcpu *vcpu)
 {
+	if (SHOULD_FORWARD_RAW(vcpu))
+		return forward_user_raw(vcpu);
+
 	kvm_inject_undefined(vcpu);
 	return 1;
 }
@@ -93,6 +112,9 @@ static int handle_no_fpsimd(struct kvm_vcpu *vcpu)
 static int kvm_handle_wfx(struct kvm_vcpu *vcpu)
 {
 	u64 esr = kvm_vcpu_get_esr(vcpu);
+
+	if (SHOULD_FORWARD_RAW(vcpu))
+		return forward_user_raw(vcpu);
 
 	if (esr & ESR_ELx_WFx_ISS_WFE) {
 		trace_kvm_wfx_arm64(*vcpu_pc(vcpu), true);
@@ -168,6 +190,9 @@ static int kvm_handle_unknown_ec(struct kvm_vcpu *vcpu)
 {
 	u64 esr = kvm_vcpu_get_esr(vcpu);
 
+	if (SHOULD_FORWARD_RAW(vcpu))
+		return forward_user_raw(vcpu);
+
 	kvm_pr_unimpl("Unknown exception class: esr: %#016llx -- %s\n",
 		      esr, esr_get_class_string(esr));
 
@@ -181,6 +206,9 @@ static int kvm_handle_unknown_ec(struct kvm_vcpu *vcpu)
  */
 static int handle_sve(struct kvm_vcpu *vcpu)
 {
+	if (SHOULD_FORWARD_RAW(vcpu))
+		return forward_user_raw(vcpu);
+
 	kvm_inject_undefined(vcpu);
 	return 1;
 }
@@ -192,6 +220,9 @@ static int handle_sve(struct kvm_vcpu *vcpu)
  */
 static int kvm_handle_ptrauth(struct kvm_vcpu *vcpu)
 {
+	if (SHOULD_FORWARD_RAW(vcpu))
+		return forward_user_raw(vcpu);
+
 	kvm_inject_undefined(vcpu);
 	return 1;
 }

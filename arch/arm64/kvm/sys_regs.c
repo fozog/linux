@@ -2630,6 +2630,9 @@ int kvm_handle_sys_reg(struct kvm_vcpu *vcpu)
 
 	trace_kvm_handle_sys_reg(esr);
 
+	if (SHOULD_FORWARD_RAW(vcpu))
+		return forward_user_raw(vcpu);
+
 	params = esr_sys64_to_params(esr);
 	params.regval = vcpu_get_reg(vcpu, Rt);
 

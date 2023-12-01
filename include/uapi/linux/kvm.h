@@ -264,6 +264,7 @@ struct kvm_xen_exit {
 #define KVM_EXIT_RISCV_SBI        35
 #define KVM_EXIT_RISCV_CSR        36
 #define KVM_EXIT_NOTIFY           37
+#define KVM_EXIT_ARM_RAW_MODE     38
 
 /* For KVM_EXIT_INTERNAL_ERROR */
 /* Emulate instruction failed. */
@@ -505,6 +506,13 @@ struct kvm_run {
 #define KVM_NOTIFY_CONTEXT_INVALID	(1 << 0)
 			__u32 flags;
 		} notify;
+		/* KVM_EXIT_ARM_RAW_MODE */
+		struct {
+			__u64 esr_el2;
+			__u64 fault_ipa;
+			__u64 fault_va;
+			__u64 elr_el2;
+		} arm_raw;
 		/* Fix the size of the union. */
 		char padding[256];
 	};
@@ -1175,6 +1183,7 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_DIRTY_LOG_RING_ACQ_REL 223
 #define KVM_CAP_S390_PROTECTED_ASYNC_DISABLE 224
 #define KVM_CAP_DIRTY_LOG_RING_WITH_BITMAP 225
+#define KVM_CAP_ARM_RAW_MODE 226
 
 #ifdef KVM_CAP_IRQ_ROUTING
 

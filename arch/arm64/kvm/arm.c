@@ -101,6 +101,11 @@ int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 		r = 0;
 		set_bit(KVM_ARCH_FLAG_SYSTEM_SUSPEND_ENABLED, &kvm->arch.flags);
 		break;
+	case KVM_CAP_ARM_RAW_MODE:
+		r = 0;
+		set_bit(KVM_ARCH_FLAG_RAW_MODE,
+			&kvm->arch.flags);
+		break;
 	default:
 		r = -EINVAL;
 		break;
@@ -230,6 +235,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_VCPU_ATTRIBUTES:
 	case KVM_CAP_PTP_KVM:
 	case KVM_CAP_ARM_SYSTEM_SUSPEND:
+	case KVM_CAP_ARM_RAW_MODE:
 		r = 1;
 		break;
 	case KVM_CAP_SET_GUEST_DEBUG2:

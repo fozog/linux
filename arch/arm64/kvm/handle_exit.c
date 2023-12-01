@@ -39,6 +39,15 @@ static int handle_hvc(struct kvm_vcpu *vcpu)
 
 	trace_kvm_hvc_arm64(*vcpu_pc(vcpu), vcpu_get_reg(vcpu, 0),
 			    kvm_vcpu_hvc_get_imm(vcpu));
+	if (test_bit(KVM_ARCH_FLAG_RAW_MODE,
+		&vcpu->kvm->arch.flags)) {
+		struct kvm_run *run = vcpu->run;
+		run->exit_reason = KVM_EXIT_ARM_RAW_MODE;
+		run->arm_raw.esr_el2 = kvm_vcpu_get_esr(vcpu);
+		run->arm_raw.fault_ipa = kvm_vcpu_get_fault_ipa(vcpu);
+		return 0;
+	}
+
 	vcpu->stat.hvc_exit_stat++;
 
 	ret = kvm_hvc_call_handler(vcpu);
@@ -60,6 +69,15 @@ static int handle_smc(struct kvm_vcpu *vcpu)
 	 * We need to advance the PC after the trap, as it would
 	 * otherwise return to the same address...
 	 */
+	if (test_bit(KVM_ARCH_FLAG_RAW_MODE,
+		&vcpu->kvm->arch.flags)) {
+		struct kvm_run *run = vcpu->run;
+		run->exit_reason = KVM_EXIT_ARM_RAW_MODE;
+		run->arm_raw.esr_el2 = kvm_vcpu_get_esr(vcpu);
+		run->arm_raw.fault_ipa = kvm_vcpu_get_fault_ipa(vcpu);
+		return 0;
+	}
+
 	vcpu_set_reg(vcpu, 0, ~0UL);
 	kvm_incr_pc(vcpu);
 	return 1;
@@ -71,6 +89,15 @@ static int handle_smc(struct kvm_vcpu *vcpu)
  */
 static int handle_no_fpsimd(struct kvm_vcpu *vcpu)
 {
+	if (test_bit(KVM_ARCH_FLAG_RAW_MODE,
+		&vcpu->kvm->arch.flags)) {
+		struct kvm_run *run = vcpu->run;
+		run->exit_reason = KVM_EXIT_ARM_RAW_MODE;
+		run->arm_raw.esr_el2 = kvm_vcpu_get_esr(vcpu);
+		run->arm_raw.fault_ipa = kvm_vcpu_get_fault_ipa(vcpu);
+		return 0;
+	}
+
 	kvm_inject_undefined(vcpu);
 	return 1;
 }
@@ -93,6 +120,15 @@ static int handle_no_fpsimd(struct kvm_vcpu *vcpu)
 static int kvm_handle_wfx(struct kvm_vcpu *vcpu)
 {
 	u64 esr = kvm_vcpu_get_esr(vcpu);
+
+	if (test_bit(KVM_ARCH_FLAG_RAW_MODE,
+		&vcpu->kvm->arch.flags)) {
+		struct kvm_run *run = vcpu->run;
+		run->exit_reason = KVM_EXIT_ARM_RAW_MODE;
+		run->arm_raw.esr_el2 = kvm_vcpu_get_esr(vcpu);
+		run->arm_raw.fault_ipa = kvm_vcpu_get_fault_ipa(vcpu);
+		return 0;
+	}
 
 	if (esr & ESR_ELx_WFx_ISS_WFE) {
 		trace_kvm_wfx_arm64(*vcpu_pc(vcpu), true);
@@ -168,6 +204,15 @@ static int kvm_handle_unknown_ec(struct kvm_vcpu *vcpu)
 {
 	u64 esr = kvm_vcpu_get_esr(vcpu);
 
+	if (test_bit(KVM_ARCH_FLAG_RAW_MODE,
+		&vcpu->kvm->arch.flags)) {
+		struct kvm_run *run = vcpu->run;
+		run->exit_reason = KVM_EXIT_ARM_RAW_MODE;
+		run->arm_raw.esr_el2 = kvm_vcpu_get_esr(vcpu);
+		run->arm_raw.fault_ipa = kvm_vcpu_get_fault_ipa(vcpu);
+		return 0;
+	}
+
 	kvm_pr_unimpl("Unknown exception class: esr: %#016llx -- %s\n",
 		      esr, esr_get_class_string(esr));
 
@@ -181,6 +226,15 @@ static int kvm_handle_unknown_ec(struct kvm_vcpu *vcpu)
  */
 static int handle_sve(struct kvm_vcpu *vcpu)
 {
+	if (test_bit(KVM_ARCH_FLAG_RAW_MODE,
+		&vcpu->kvm->arch.flags)) {
+		struct kvm_run *run = vcpu->run;
+		run->exit_reason = KVM_EXIT_ARM_RAW_MODE;
+		run->arm_raw.esr_el2 = kvm_vcpu_get_esr(vcpu);
+		run->arm_raw.fault_ipa = kvm_vcpu_get_fault_ipa(vcpu);
+		return 0;
+	}
+
 	kvm_inject_undefined(vcpu);
 	return 1;
 }
@@ -192,6 +246,15 @@ static int handle_sve(struct kvm_vcpu *vcpu)
  */
 static int kvm_handle_ptrauth(struct kvm_vcpu *vcpu)
 {
+	if (test_bit(KVM_ARCH_FLAG_RAW_MODE,
+		&vcpu->kvm->arch.flags)) {
+		struct kvm_run *run = vcpu->run;
+		run->exit_reason = KVM_EXIT_ARM_RAW_MODE;
+		run->arm_raw.esr_el2 = kvm_vcpu_get_esr(vcpu);
+		run->arm_raw.fault_ipa = kvm_vcpu_get_fault_ipa(vcpu);
+		return 0;
+	}
+
 	kvm_inject_undefined(vcpu);
 	return 1;
 }
@@ -239,6 +302,10 @@ static exit_handle_fn kvm_get_exit_handler(struct kvm_vcpu *vcpu)
 static int handle_trap_exceptions(struct kvm_vcpu *vcpu)
 {
 	int handled;
+
+	//u64 esr = kvm_vcpu_get_esr(vcpu);
+	//u8 esr_ec = ESR_ELx_EC(esr);
+	//printk(KERN_INFO"Exit cause %x at %lx\n", esr_ec, *vcpu_pc(vcpu));
 
 	/*
 	 * See ARM ARM B1.14.1: "Hyp traps on instructions

@@ -2630,6 +2630,15 @@ int kvm_handle_sys_reg(struct kvm_vcpu *vcpu)
 
 	trace_kvm_handle_sys_reg(esr);
 
+        if (test_bit(KVM_ARCH_FLAG_RAW_MODE,
+                &vcpu->kvm->arch.flags)) {
+                struct kvm_run *run = vcpu->run;
+                run->exit_reason = KVM_EXIT_ARM_RAW_MODE;
+                run->arm_raw.esr_el2 = kvm_vcpu_get_esr(vcpu);
+                run->arm_raw.fault_ipa = kvm_vcpu_get_fault_ipa(vcpu);
+                return 0;
+        }
+
 	params = esr_sys64_to_params(esr);
 	params.regval = vcpu_get_reg(vcpu, Rt);
 

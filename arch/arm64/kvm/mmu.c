@@ -1454,10 +1454,20 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu)
 		if (fault_ipa >= BIT_ULL(vcpu->arch.hw_mmu->pgt->ia_bits)) {
 			fault_ipa |= kvm_vcpu_get_hfar(vcpu) & GENMASK(11, 0);
 
-			if (is_iabt)
+			if (is_iabt) {
+				if (test_bit(KVM_ARCH_FLAG_RAW_MODE,
+					&vcpu->kvm->arch.flags)) {
+					struct kvm_run *run = vcpu->run;
+					run->exit_reason = KVM_EXIT_ARM_RAW_MODE;
+					run->arm_raw.esr_el2 = kvm_vcpu_get_esr(vcpu);
+					run->arm_raw.fault_ipa = kvm_vcpu_get_fault_ipa(vcpu);
+					return 0;
+				}
 				kvm_inject_pabt(vcpu, fault_ipa);
+			}
 			else
 				kvm_inject_dabt(vcpu, fault_ipa);
+
 			return 1;
 		}
 	}
@@ -1502,6 +1512,15 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu)
 		 * re-inject the abort back into the guest.
 		 */
 		if (is_iabt) {
+			if (test_bit(KVM_ARCH_FLAG_RAW_MODE,
+				&vcpu->kvm->arch.flags)) {
+				struct kvm_run *run = vcpu->run;
+				run->exit_reason = KVM_EXIT_ARM_RAW_MODE;
+				run->arm_raw.esr_el2 = kvm_vcpu_get_esr(vcpu);
+				run->arm_raw.fault_ipa = kvm_vcpu_get_fault_ipa(vcpu);
+				ret=0;
+				goto out;
+			}
 			ret = -ENOEXEC;
 			goto out;
 		}

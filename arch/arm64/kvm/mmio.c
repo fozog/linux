@@ -135,7 +135,14 @@ int io_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa)
 	 * volunteered to do so, and bail out otherwise.
 	 */
 	if (!kvm_vcpu_dabt_isvalid(vcpu)) {
-		if (test_bit(KVM_ARCH_FLAG_RETURN_NISV_IO_ABORT_TO_USER,
+		if (test_bit(KVM_ARCH_FLAG_RAW_MODE,
+			     &vcpu->kvm->arch.flags)) {
+			run->exit_reason = KVM_EXIT_ARM_RAW_MODE;
+			run->arm_raw.esr_el2 = kvm_vcpu_get_esr(vcpu);
+			run->arm_raw.fault_ipa = fault_ipa;
+			return 0;
+		}
+		else if (test_bit(KVM_ARCH_FLAG_RETURN_NISV_IO_ABORT_TO_USER,
 			     &vcpu->kvm->arch.flags)) {
 			run->exit_reason = KVM_EXIT_ARM_NISV;
 			run->arm_nisv.esr_iss = kvm_vcpu_dabt_iss_nisv_sanitized(vcpu);
@@ -191,6 +198,14 @@ int io_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa)
 	if (is_write)
 		memcpy(run->mmio.data, data_buf, len);
 	vcpu->stat.mmio_exit_user++;
+        if (test_bit(KVM_ARCH_FLAG_RAW_MODE,
+                &vcpu->kvm->arch.flags)) {
+                struct kvm_run *run = vcpu->run;
+                run->exit_reason = KVM_EXIT_ARM_RAW_MODE;
+                run->arm_raw.esr_el2 = kvm_vcpu_get_esr(vcpu);
+                run->arm_raw.fault_ipa = kvm_vcpu_get_fault_ipa(vcpu);
+                return 0;
+        }
 	run->exit_reason	= KVM_EXIT_MMIO;
 	return 0;
 }

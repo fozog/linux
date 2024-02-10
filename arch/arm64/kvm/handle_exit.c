@@ -169,14 +169,19 @@ static int kvm_handle_guest_debug(struct kvm_vcpu *vcpu)
 	struct kvm_run *run = vcpu->run;
 	u64 esr = kvm_vcpu_get_esr(vcpu);
 
-	run->exit_reason = KVM_EXIT_DEBUG;
-	run->debug.arch.hsr = lower_32_bits(esr);
-	run->debug.arch.hsr_high = upper_32_bits(esr);
-	run->flags = KVM_DEBUG_ARCH_HSR_HIGH_VALID;
+	if (SHOULD_FORWARD_RAW(vcpu)) {
+		forward_user_raw(vcpu);
+	} else {
+		run->exit_reason = KVM_EXIT_DEBUG;
+		run->debug.arch.hsr = lower_32_bits(esr);
+		run->debug.arch.hsr_high = upper_32_bits(esr);
+		run->flags = KVM_DEBUG_ARCH_HSR_HIGH_VALID;
+	}
 
 	switch (ESR_ELx_EC(esr)) {
 	case ESR_ELx_EC_WATCHPT_LOW:
-		run->debug.arch.far = vcpu->arch.fault.far_el2;
+		if (!SHOULD_FORWARD_RAW(vcpu)) 
+			run->debug.arch.far = vcpu->arch.fault.far_el2;
 		break;
 	case ESR_ELx_EC_SOFTSTP_LOW:
 		vcpu_clear_flag(vcpu, DBG_SS_ACTIVE_PENDING);

@@ -29,10 +29,15 @@ typedef int (*exit_handle_fn)(struct kvm_vcpu *);
 
 int forward_user_raw(struct kvm_vcpu *vcpu) 
 {
+	u64 low12bits;
 	struct kvm_run *run = vcpu->run;
 	run->exit_reason = KVM_EXIT_ARM_RAW_MODE;
 	run->arm_raw.esr_el2 = kvm_vcpu_get_esr(vcpu);
-	run->arm_raw.fault_ipa = kvm_vcpu_get_fault_ipa(vcpu);
+	run->arm_raw.fault_va = kvm_vcpu_get_hfar(vcpu);
+	// https://elixir.bootlin.com/linux/v6.2.16/source/arch/arm64/kvm/mmu.c#L1561
+	low12bits = run->arm_raw.fault_va & 0xFFF;
+	run->arm_raw.fault_ipa = kvm_vcpu_get_fault_ipa(vcpu) | low12bits;
+
 	return 0;
 }
 
